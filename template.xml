@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<document>
+    <align mode="center">
+        <text-line>{{branchName}}</text-line>
+        <line-feed />
+        <text-line>-----------------------------------------------</text-line>
+    </align>
+    <text-line>Caja: {{box}}</text-line>
+    <text-line>Fecha de compra: {{date}}</text-line>
+    <text-line>Numero de control: {{numeroControl}}</text-line>
+    <text-line>Codigo Generacion: {{codigoGeneracion}}</text-line>
+    <text-line>Sello recibido: {{selloRecibido}}</text-line>
+    <line-feed />
+    <align mode="center">
+        <text-line>-----------------------------------------------</text-line>
+        <text-line>Producto             Cantidad   Precio    Total</text-line>
+        <text-line>-----------------------------------------------</text-line>
+    </align>
+    <line-feed />
+    <text-line>{{tableData}}</text-line>
+    <align mode="center">
+        <text-line>-----------------------------------------------</text-line>
+    </align>
+    <text-line>                                 TOTAL A PAGAR: ${{totalPagar}}</text-line>
+    <align mode="center">
+        <text-line>Este comprobante no tiene validez tributaria,</text-line>
+        <align mode="center">
+            <image density="d8" size="20" width="12" height="12">{{qr}}</image>
+            <line-feed />
+        </align>
+        <align mode="center">
+        <text-line>Escanea el codigo QR para validar tu DTE</text-line>
+        <line-feed />
+        <text-line>Powered by SeedCodeSV</text-line>
+        <line-feed />
+        <text-line>www.seedcodesv.com</text-line>
+        <line-feed />
+        <qr>https://seedcodesv.com/</qr>
+        </align>
+        <line-feed />
+    </align>
+    <paper-cut/>
+</document>

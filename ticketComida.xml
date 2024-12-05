@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<document>
+    <text-line>              ORDEN DE COMIDA              </text-line>
+    <line-feed />
+    <text-line>Fecha y Hora : {{date}}-{{time}}</text-line>
+    <line-feed />
+    <text-line>Mesa: {{tableId}}</text-line>
+    <line-feed />
+    <text-line>Cliente: {{customer}}</text-line>
+    <line-feed />
+     <text-line>Empleado: {{employee}}</text-line>
+    <line-feed />  
+    <text-line>-----------------------------------------------</text-line>
+    <text-line>Producto                               Cantidad</text-line>
+    <text-line>-----------------------------------------------</text-line>
+    <line-feed />
+    <text-line>{{tableData}}</text-line>  
+    <line-feed />
+   <text-line>-----------------------------------------------</text-line>
+   <line-feed />
+     <text-line>Comentario: {{description}}</text-line>
+    <line-feed /> 
+    <paper-cut/>
+</document>
