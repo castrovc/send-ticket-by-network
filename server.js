@@ -162,9 +162,10 @@ app.post('/print', async (req, res) => {
     };
     const device = new escpos.Network(PRINTER.host, PRINTER.port);
     const printer = new escpos.Printer(device);
+    const qrImage = `https://admin.factura.gob.sv/consultaPublica?ambiente=${encodeURIComponent("00")}&codGen=${encodeURIComponent(codigoGeneracion)}&fechaEmi=${encodeURIComponent(fecEmi)}`;
+
 
     device.open(async (error) => {
-      const qrImage = `https://admin.factura.gob.sv/consultaPublica?ambiente=${encodeURIComponent("00")}&codGen=${encodeURIComponent(codigoGeneracion)}&fechaEmi=${encodeURIComponent(fecEmi)}`;
 
       if (error) {
         console.error("Error connecting to printer:", error);
@@ -181,12 +182,11 @@ app.post('/print', async (req, res) => {
         .size(0, 0)
         .text("-----------------------------------------------");
 
-      // Información general con estilo (fuente más pequeña)
       printer
         .align("CT")
         .style("NORMAL")
         .size(0, 0)
-        .text(`Caja: ${box}`)
+        .text(`Caja: ${box}`).marginBottom(4)
         .style("NORMAL")
         .text(`Fecha de compra: ${fecEmi}`)
         .text(`Numero de control: `)
@@ -205,14 +205,25 @@ app.post('/print', async (req, res) => {
         .style("NORMAL")
         .text("-----------------------------------------------");
 
-      details.forEach((detail) => {
-        const productName = detail.descripcion.padEnd(20);
-        const quantity = String(detail.cantidad).padStart(6);
-        const price = String(detail.precioUni).padStart(11);
-        const total = String(detail.ventaGravada).padStart(10);
+        details.forEach((detail) => {
+          const productName = String(detail.descripcion);
+          const quantity = String(detail.cantidad).padStart(8).padEnd(12); 
+          const price = `$${Number(detail.precioUni).toFixed(2)}`.padStart(6).padEnd(9); 
+          const total = `$${Number(detail.ventaGravada).toFixed(2)}`.padStart(6);
+        
+          if (productName.length > 19) {
+            const firstPart = productName.slice(0, 19); 
+            const secondPart = productName.slice(19);   
+        
+            printer.encode('CP850').text(`${firstPart.padEnd(19)}${quantity}${price}${total}`);
+            
+            printer.encode('CP850').align('LT').text(`${secondPart.padEnd(19)}`);
+          } else {
+            const paddedName = productName.padEnd(19);
+            printer.encode('CP850').text(`${paddedName}${quantity}${price}${total}`);
+          }
+        });
 
-        printer.text(`${productName}``${quantity}``${price}``${total}`);
-      });
 
       printer.text("-----------------------------------------------");
 
@@ -229,13 +240,19 @@ app.post('/print', async (req, res) => {
         .style("I")
         .size(0, 0)
         .text("Este comprobante no tiene validez tributaria,").feed();
-      printer.qrimage(qrImage, function (err) {
-        if (err) {
-          console.error('Error generating QR:', err);
-        } else {
-          console.log('QR generated successfully');
-        }
-      });
+
+        await new Promise((resolve, reject) => {
+          printer.qrimage(qrImage, function (err) { 
+            if (err) {
+              console.error('Error generating QR:', err);
+              reject(err);
+            } else {
+              console.log('QR generated successfully');
+              resolve();
+            }
+          });
+        });
+
       printer.text("Escanea el codigo QR para validar tu DTE")
         .style("B")
         .text("Powered by SeedCodeSV")
