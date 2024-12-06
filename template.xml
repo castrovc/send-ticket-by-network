@@ -5,11 +5,16 @@
         <line-feed />
         <text-line>-----------------------------------------------</text-line>
     </align>
-    <text-line>Caja: {{box}}</text-line>
-    <text-line>Fecha de compra: {{date}}</text-line>
-    <text-line>Numero de control: {{numeroControl}}</text-line>
-    <text-line>Codigo Generacion: {{codigoGeneracion}}</text-line>
-    <text-line>Sello recibido: {{selloRecibido}}</text-line>
+    <align mode="center">
+        <text-line>Caja: {{box}}</text-line>
+        <text-line>Fecha de compra: {{date}}</text-line>
+        <text-line>Numero de control:</text-line>    
+        <text-line>{{numeroControl}}</text-line>
+        <text-line>Codigo Generacion:</text-line>
+        <text-line>{{codigoGeneracion}}</text-line>
+        <text-line>Sello recibido:</text-line>
+        <text-line>{{selloRecibido}}</text-line>
+    </align>
     <line-feed />
     <align mode="center">
         <text-line>-----------------------------------------------</text-line>
@@ -35,7 +40,6 @@
         <line-feed />
         <text-line>www.seedcodesv.com</text-line>
         <line-feed />
-        <qr>https://seedcodesv.com/</qr>
         </align>
         <line-feed />
     </align>
