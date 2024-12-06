@@ -150,6 +150,7 @@ app.post('/print', async (req, res) => {
       box,
       selloRecibido,
       fecEmi,
+      customer
     } = req.body;
 
     if (!details || !branchName || !totalPagar || !numeroControl || !codigoGeneracion || !box || !selloRecibido || !fecEmi) {
@@ -162,7 +163,7 @@ app.post('/print', async (req, res) => {
     };
     const device = new escpos.Network(PRINTER.host, PRINTER.port);
     const printer = new escpos.Printer(device);
-    const qrImage = `https://admin.factura.gob.sv/consultaPublica?ambiente=${encodeURIComponent("00")}&codGen=${encodeURIComponent(codigoGeneracion)}&fechaEmi=${encodeURIComponent(fecEmi)}`;
+    const qrImage = `${process.env.MH_QUERY}?ambiente=${encodeURIComponent(process.env.ENVIROMENT)}&codGen=${encodeURIComponent(codigoGeneracion)}&fechaEmi=${encodeURIComponent(fecEmi)}`;
 
 
     device.open(async (error) => {
@@ -195,6 +196,7 @@ app.post('/print', async (req, res) => {
         .text(`${codigoGeneracion}`)
         .text(`Sello recibido:`)
         .text(`${selloRecibido}`)
+        .text(`Cliente: ${customer || 'CLIENTE VARIOS'}`)
         .text("-----------------------------------------------");
 
       printer
@@ -287,7 +289,6 @@ app.post("/sale", async (req, res) => {
       phone,
     } = req.body;
 
-    // Validaciones para customer y tableId
     if (customer === "N/A") {
       customer = "CLIENTE VARIOS";
     }
