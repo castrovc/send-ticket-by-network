@@ -149,9 +149,10 @@ app.post('/print', async (req, res) => {
       codigoGeneracion,
       box,
       selloRecibido,
+      fecEmi,
     } = req.body;
 
-    if (!details || !branchName || !totalPagar || !numeroControl || !codigoGeneracion || !box || !selloRecibido) {
+   if (!details || !branchName || !totalPagar || !numeroControl || !codigoGeneracion || !box || !selloRecibido || !fecEmi) {
       return res.status(400).send('Missing required fields');
     }
 
@@ -169,7 +170,6 @@ app.post('/print', async (req, res) => {
         return res.status(500).send("Printer connection failed");
       }
 
-      console.log("productName:", productName, "quantity:", quantity, "price:", price, "total:", total);
       // Encabezado del ticket con estilo
       printer
         .align("CT") // Centrar texto
@@ -342,5 +342,71 @@ app.post("/printName", async (req, res) => {
   } catch (err) {
     console.error("Error al imprimir:", err);
     res.status(500).send("Error al imprimir el ticket");
+  }
+});
+
+app.post('/printsecond', async (req, res) => {
+  try {
+    const {
+      codigoGeneracion,
+      fecEmi,
+    } = req.body;
+
+    console.log(codigoGeneracion,fecEmi);
+
+
+    if ( !codigoGeneracion || !fecEmi) {
+      return res.status(400).send('Missing required fields');
+    }
+
+// const qrImage = await QR_URL(codigoGeneracion,fecEmi);
+
+// if (!qrImage) {
+//   return res.status(500).send("Error generando el código QR");
+// }
+
+// const qrImage = await generateQRCode(`https://admin.factura.gob.sv/consultaPublica?ambiente=${encodeURIComponent("00")}&codGen=${encodeURIComponent(codigoGeneracion)}&fechaEmi=${encodeURIComponent(fecEmi)}`)
+const qrImage = `https://admin.factura.gob.sv/consultaPublica?ambiente=${encodeURIComponent("00")}&codGen=${encodeURIComponent(codigoGeneracion)}&fechaEmi=${encodeURIComponent(fecEmi)}`
+
+
+console.log("QR generado:", qrImage);
+
+
+
+    const PRINTER = {
+      host: '192.168.0.100', // Cambia según tu red
+      port: 9100,           // Puerto configurado para la impresora
+    };
+    const device = new escpos.Network(PRINTER.host, PRINTER.port);
+    const printer = new escpos.Printer(device);
+
+    device.open(function(error){
+      printer
+      .font('a')
+      .align('ct')
+      .style('bu')
+      .size(1, 1)
+      .text('The quick brown fox jumps over the lazy dog')
+      .text('敏捷的棕色狐狸跳过懒狗')
+      .barcode('1234567', 'EAN8')
+      .table(["One", "Two", "Three"])
+      .tableCustom(
+        [
+          { text:"Left", align:"LEFT", width:0.33, style: 'B' },
+          { text:"Center", align:"CENTER", width:0.33},
+          { text:"Right", align:"RIGHT", width:0.33 }
+        ],
+        { encoding: 'cp857', size: [1, 1] } // Optional
+      )
+      .qrimage(qrImage, function(err){
+        this.cut();
+        this.close();
+      });
+    });
+    
+    res.send("Ticket imprimido con éxito");
+  } catch (err) {
+    console.error("Error while printing:", err);
+    res.status(500).send("Printing failed");
   }
 });
