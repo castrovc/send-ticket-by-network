@@ -152,11 +152,10 @@ app.post('/print', async (req, res) => {
       fecEmi,
     } = req.body;
 
-   if (!details || !branchName || !totalPagar || !numeroControl || !codigoGeneracion || !box || !selloRecibido || !fecEmi) {
+    if (!details || !branchName || !totalPagar || !numeroControl || !codigoGeneracion || !box || !selloRecibido || !fecEmi) {
       return res.status(400).send('Missing required fields');
     }
 
-    // Configuración de la impresora
     const PRINTER = {
       host: '192.168.0.100', // Cambia según tu red
       port: 9100,           // Puerto configurado para la impresora
@@ -165,6 +164,8 @@ app.post('/print', async (req, res) => {
     const printer = new escpos.Printer(device);
 
     device.open(async (error) => {
+      const qrImage = `https://admin.factura.gob.sv/consultaPublica?ambiente=${encodeURIComponent("00")}&codGen=${encodeURIComponent(codigoGeneracion)}&fechaEmi=${encodeURIComponent(fecEmi)}`;
+
       if (error) {
         console.error("Error connecting to printer:", error);
         return res.status(500).send("Printer connection failed");
@@ -172,66 +173,78 @@ app.post('/print', async (req, res) => {
 
       // Encabezado del ticket con estilo
       printer
-        .align("CT") // Centrar texto
-        .style("B") // Negrita
-        .size(2, 2) // Doble altura y doble ancho
-        .text(branchName) // Nombre de la sucursal
-        .style("NORMAL") // Estilo normal
-        .size(1, 1) // Tamaño normal
+        .align("CT")
+        .style("B")
+        .size(0, 0)
+        .text(branchName)
+        .style("NORMAL")
+        .size(0, 0)
         .text("-----------------------------------------------");
 
-      // Información general con estilo
-      printer
-        .align("LT") // Alinear a la izquierda
-        .style("B") // Negrita
-        .text(`Caja: ${box}`)
-        .style("NORMAL") // Estilo normal
-        .text(`Fecha de compra: ${new Date().toLocaleString()}`)
-        .text(`Número de control: ${numeroControl}`)
-        .text(`Código Generación: ${codigoGeneracion}`)
-        .text(`Sello recibido: ${selloRecibido}`)
-        .text("-----------------------------------------------");
-
-      // Títulos de la tabla con estilo
+      // Información general con estilo (fuente más pequeña)
       printer
         .align("CT")
-        .style("U") // Subrayado
+        .style("NORMAL")
+        .size(0, 0)
+        .text(`Caja: ${box}`)
+        .style("NORMAL")
+        .text(`Fecha de compra: ${fecEmi}`)
+        .text(`Numero de control: `)
+        .text(`${numeroControl}`)
+        .text(`Codigo Generacion: `)
+        .text(`${codigoGeneracion}`)
+        .text(`Sello recibido:`)
+        .text(`${selloRecibido}`)
+        .text("-----------------------------------------------");
+
+      printer
+        .align("CT")
+        .style("NORMAL")
+        .size(0, 0)
         .text("Producto             Cantidad   Precio    Total")
         .style("NORMAL")
         .text("-----------------------------------------------");
 
-      // Detalles de productos
       details.forEach((detail) => {
         const productName = detail.descripcion.padEnd(20);
         const quantity = String(detail.cantidad).padStart(6);
         const price = String(detail.precioUni).padStart(11);
         const total = String(detail.ventaGravada).padStart(10);
 
-        printer.text(`${productName}${quantity}${price}${total}`);
+        printer.text(`${productName}``${quantity}``${price}``${total}`);
       });
 
       printer.text("-----------------------------------------------");
 
       printer
         .align("RT")
-        .style("B")
-        .size(2, 1)
+        .style("B") // Negrita
+        .size(0, 0) // Tamaño más pequeño
         .text(`TOTAL A PAGAR: $${totalPagar}`)
         .style("NORMAL")
-        .size(1, 1);
+        .size(0, 0); // Tamaño más pequeño
+
       printer
         .align("CT")
-        .text("Este comprobante no tiene validez tributaria,")
-        .text("https://seedcodesv.com/", { size: 4 })
-        .text("Escanea el código QR para validar tu DTE")
+        .style("I")
+        .size(0, 0)
+        .text("Este comprobante no tiene validez tributaria,").feed();
+      printer.qrimage(qrImage, function (err) {
+        if (err) {
+          console.error('Error generating QR:', err);
+        } else {
+          console.log('QR generated successfully');
+        }
+      });
+      printer.text("Escanea el codigo QR para validar tu DTE")
         .style("B")
         .text("Powered by SeedCodeSV")
         .style("NORMAL")
-        .text("www.seedcodesv.com");
-
-      // Corte de papel
-      printer.cut();
-      printer.close();
+        .text("www.seedcodesv.com")
+        .marginBottom(4)
+        .feed(3)
+        .cut()
+        .close();
 
       res.send("success");
     });
@@ -352,24 +365,24 @@ app.post('/printsecond', async (req, res) => {
       fecEmi,
     } = req.body;
 
-    console.log(codigoGeneracion,fecEmi);
+    console.log(codigoGeneracion, fecEmi);
 
 
-    if ( !codigoGeneracion || !fecEmi) {
+    if (!codigoGeneracion || !fecEmi) {
       return res.status(400).send('Missing required fields');
     }
 
-// const qrImage = await QR_URL(codigoGeneracion,fecEmi);
+    // const qrImage = await QR_URL(codigoGeneracion,fecEmi);
 
-// if (!qrImage) {
-//   return res.status(500).send("Error generando el código QR");
-// }
+    // if (!qrImage) {
+    //   return res.status(500).send("Error generando el código QR");
+    // }
 
-// const qrImage = await generateQRCode(`https://admin.factura.gob.sv/consultaPublica?ambiente=${encodeURIComponent("00")}&codGen=${encodeURIComponent(codigoGeneracion)}&fechaEmi=${encodeURIComponent(fecEmi)}`)
-const qrImage = `https://admin.factura.gob.sv/consultaPublica?ambiente=${encodeURIComponent("00")}&codGen=${encodeURIComponent(codigoGeneracion)}&fechaEmi=${encodeURIComponent(fecEmi)}`
+    // const qrImage = await generateQRCode(`https://admin.factura.gob.sv/consultaPublica?ambiente=${encodeURIComponent("00")}&codGen=${encodeURIComponent(codigoGeneracion)}&fechaEmi=${encodeURIComponent(fecEmi)}`)
+    const qrImage = `https://admin.factura.gob.sv/consultaPublica?ambiente=${encodeURIComponent("00")}&codGen=${encodeURIComponent(codigoGeneracion)}&fechaEmi=${encodeURIComponent(fecEmi)}`
 
 
-console.log("QR generado:", qrImage);
+    console.log("QR generado:", qrImage);
 
 
 
@@ -380,30 +393,30 @@ console.log("QR generado:", qrImage);
     const device = new escpos.Network(PRINTER.host, PRINTER.port);
     const printer = new escpos.Printer(device);
 
-    device.open(function(error){
+    device.open(function (error) {
       printer
-      .font('a')
-      .align('ct')
-      .style('bu')
-      .size(1, 1)
-      .text('The quick brown fox jumps over the lazy dog')
-      .text('敏捷的棕色狐狸跳过懒狗')
-      .barcode('1234567', 'EAN8')
-      .table(["One", "Two", "Three"])
-      .tableCustom(
-        [
-          { text:"Left", align:"LEFT", width:0.33, style: 'B' },
-          { text:"Center", align:"CENTER", width:0.33},
-          { text:"Right", align:"RIGHT", width:0.33 }
-        ],
-        { encoding: 'cp857', size: [1, 1] } // Optional
-      )
-      .qrimage(qrImage, function(err){
-        this.cut();
-        this.close();
-      });
+        .font('a')
+        .align('ct')
+        .style('bu')
+        .size(1, 1)
+        .text('The quick brown fox jumps over the lazy dog')
+        .text('敏捷的棕色狐狸跳过懒狗')
+        .barcode('1234567', 'EAN8')
+        .table(["One", "Two", "Three"])
+        .tableCustom(
+          [
+            { text: "Left", align: "LEFT", width: 0.33, style: 'B' },
+            { text: "Center", align: "CENTER", width: 0.33 },
+            { text: "Right", align: "RIGHT", width: 0.33 }
+          ],
+          { encoding: 'cp857', size: [1, 1] } // Optional
+        )
+        .qrimage(qrImage, function (err) {
+          this.cut();
+          this.close();
+        });
     });
-    
+
     res.send("Ticket imprimido con éxito");
   } catch (err) {
     console.error("Error while printing:", err);
