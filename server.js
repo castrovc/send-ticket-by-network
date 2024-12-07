@@ -158,14 +158,13 @@ app.post('/print', async (req, res) => {
     }
 
     const PRINTER = {
+      device_name: "SEEDCODE",
       host: '192.168.0.100', // Cambia según tu red
       port: 9100,           // Puerto configurado para la impresora
     };
     const device = new escpos.Network(PRINTER.host, PRINTER.port);
     const printer = new escpos.Printer(device);
     const qrImage = `${process.env.MH_QUERY}?ambiente=${encodeURIComponent(process.env.ENVIROMENT)}&codGen=${encodeURIComponent(codigoGeneracion)}&fechaEmi=${encodeURIComponent(fecEmi)}`;
-
-
     device.open(async (error) => {
 
       if (error) {
@@ -244,7 +243,7 @@ app.post('/print', async (req, res) => {
         .text("Este comprobante no tiene validez tributaria,").feed();
 
         await new Promise((resolve, reject) => {
-          printer.qrimage(qrImage, function (err) { 
+          printer.qrimage(qrImage,{height: 300, width: 300}, function (err) {
             if (err) {
               console.error('Error generating QR:', err);
               reject(err);
@@ -417,18 +416,7 @@ app.post('/printsecond', async (req, res) => {
         .align('ct')
         .style('bu')
         .size(1, 1)
-        .text('The quick brown fox jumps over the lazy dog')
-        .text('敏捷的棕色狐狸跳过懒狗')
-        .barcode('1234567', 'EAN8')
-        .table(["One", "Two", "Three"])
-        .tableCustom(
-          [
-            { text: "Left", align: "LEFT", width: 0.33, style: 'B' },
-            { text: "Center", align: "CENTER", width: 0.33 },
-            { text: "Right", align: "RIGHT", width: 0.33 }
-          ],
-          { encoding: 'cp857', size: [1, 1] } // Optional
-        )
+        
         .qrimage(qrImage, function (err) {
           this.cut();
           this.close();
