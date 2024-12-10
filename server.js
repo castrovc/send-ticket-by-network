@@ -164,7 +164,7 @@ app.post('/print', async (req, res) => {
     };
     const device = new escpos.Network(PRINTER.host, PRINTER.port);
     const printer = new escpos.Printer(device);
-    const qrImage = `${process.env.MH_QUERY}?ambiente=${encodeURIComponent(process.env.ENVIROMENT)}&codGen=${encodeURIComponent(codigoGeneracion)}&fechaEmi=${encodeURIComponent(fecEmi)}`;
+    const qrImage = `https://admin.factura.gob.sv/consultaPublica?ambiente=${encodeURIComponent("00")}&codGen=${encodeURIComponent(codigoGeneracion)}&fechaEmi=${encodeURIComponent(fecEmi)}`;
     device.open(async (error) => {
 
       if (error) {
@@ -208,7 +208,7 @@ app.post('/print', async (req, res) => {
 
         details.forEach((detail) => {
           const productName = String(detail.descripcion);
-          const quantity = String(detail.cantidad).padStart(8).padEnd(12); 
+          const quantity = String(detail.cantidad).padStart(6).padEnd(12); 
           const price = `$${Number(detail.precioUni).toFixed(2)}`.padStart(6).padEnd(9); 
           const total = `$${Number(detail.ventaGravada).toFixed(2)}`.padStart(6);
         
@@ -236,14 +236,10 @@ app.post('/print', async (req, res) => {
         .style("NORMAL")
         .size(0, 0); // Tamaño más pequeño
 
-      printer
-        .align("CT")
-        .style("I")
-        .size(0, 0)
-        .text("Este comprobante no tiene validez tributaria,").feed();
+    
 
         await new Promise((resolve, reject) => {
-          printer.qrimage(qrImage,{height: 300, width: 300}, function (err) {
+          printer.qrimage(qrImage ,function (err) {
             if (err) {
               console.error('Error generating QR:', err);
               reject(err);
@@ -253,7 +249,11 @@ app.post('/print', async (req, res) => {
             }
           });
         });
-
+        printer
+        .align("CT")
+        .style("I")
+        .size(0, 0)
+        .text("Este comprobante no tiene validez tributaria,").feed();
       printer.text("Escanea el codigo QR para validar tu DTE")
         .style("B")
         .text("Powered by SeedCodeSV")
