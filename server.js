@@ -74,8 +74,6 @@ app.post('/print', async (req, res) => {
     const device = new escpos.Network(PRINTER.host, PRINTER.port);
     const printer = new escpos.Printer(device);
     const qrImage = `${process.env.MH_QUERY}?ambiente=${encodeURIComponent(process.env.ENVIROMENT)}&codGen=${encodeURIComponent(codigoGeneracion)}&fechaEmi=${encodeURIComponent(fecEmi)}`;
-
-
     device.open(async (error) => {
 
       if (error) {
