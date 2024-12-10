@@ -8,6 +8,7 @@ const logoPath = "./assets/qr.png";
 const sharp = require("sharp");
 const escpos = require("escpos");
 escpos.Network = require("escpos-network");
+require("dotenv").config();
 
 const getResizedLogoBase64 = async () => {
   return sharp(logoPath)
@@ -48,97 +49,6 @@ https.createServer(options, app).listen(3000, () => {
   console.log("Listening on port 3000");
 });
 
-app.post("/print2", async (req, res) => {
-  try {
-    let {
-      details,
-      customer,
-      total,
-      date,
-      time,
-      tableId,
-      employee,
-      description,
-    } = req.body;
-
-    if (!details || !customer || !total || !date || !time) {
-      return res.status(400).send("Missing required fields");
-    }
-
-    if (customer === "N/A") {
-      customer = "CLIENTE VARIOS";
-    }
-    if (!tableId) {
-      tableId = "DELIVERY";
-    }
-    if (description === "N/A") {
-      description = "SIN COMENTARIOS";
-    }
-
-    const foodDetails = details.filter(
-      (detail) =>
-        detail.branchProduct.product.subCategoryProduct.categoryProduct.name ===
-        "Comida"
-    );
-    const beverageDetails = details.filter(
-      (detail) =>
-        detail.branchProduct.product.subCategoryProduct.categoryProduct.name ===
-        "Bebidas"
-    );
-
-    const templateComida = fs.readFileSync("./ticketComida.xml", {
-      encoding: "utf8",
-    });
-    const templateBebida = fs.readFileSync("./ticketBebida.xml", {
-      encoding: "utf8",
-    });
-
-    const PRINTER = {
-      device_name: "SEEDCODE",
-      host: "192.168.0.100",
-      port: 9100,
-    };
-
-    const printTicket = async (filteredDetails, category, template) => {
-      const tableData = filteredDetails
-        .map((detail) => {
-          const productName = detail.branchProduct.product.name.padEnd(20);
-          const quantity = String(detail.quantity).padStart(23);
-
-          return `${productName}${quantity}`;
-        })
-        .join("\n");
-
-      const message = generateBuffer(template, {
-        customer,
-        total,
-        date,
-        employee: employee.fullName,
-        time,
-        description,
-        tableData,
-        tableId,
-        category,
-      });
-
-      await sendMessageToPrinter(PRINTER.host, PRINTER.port, message);
-    };
-
-    if (foodDetails.length > 0) {
-      await printTicket(foodDetails, "Comida", templateComida);
-    }
-
-    if (beverageDetails.length > 0) {
-      await printTicket(beverageDetails, "Bebidas", templateBebida);
-    }
-
-    res.send("success");
-  } catch (err) {
-    console.log(err);
-    res.send("failed");
-  }
-});
-
 app.post('/print', async (req, res) => {
   try {
     const {
@@ -158,7 +68,7 @@ app.post('/print', async (req, res) => {
     }
 
     const PRINTER = {
-      host: '192.168.0.100', // Cambia según tu red
+      host: process.env.HOST, // Cambia según tu red
       port: 9100,           // Puerto configurado para la impresora
     };
     const device = new escpos.Network(PRINTER.host, PRINTER.port);
@@ -207,24 +117,24 @@ app.post('/print', async (req, res) => {
         .style("NORMAL")
         .text("-----------------------------------------------");
 
-        details.forEach((detail) => {
-          const productName = String(detail.descripcion);
-          const quantity = String(detail.cantidad).padStart(8).padEnd(12); 
-          const price = `$${Number(detail.precioUni).toFixed(2)}`.padStart(6).padEnd(9); 
-          const total = `$${Number(detail.ventaGravada).toFixed(2)}`.padStart(6);
-        
-          if (productName.length > 19) {
-            const firstPart = productName.slice(0, 19); 
-            const secondPart = productName.slice(19);   
-        
-            printer.encode('CP850').text(`${firstPart.padEnd(19)}${quantity}${price}${total}`);
-            
-            printer.encode('CP850').align('LT').text(`${secondPart.padEnd(19)}`);
-          } else {
-            const paddedName = productName.padEnd(19);
-            printer.encode('CP850').text(`${paddedName}${quantity}${price}${total}`);
-          }
-        });
+      details.forEach((detail) => {
+        const productName = String(detail.descripcion);
+        const quantity = String(detail.cantidad).padStart(8).padEnd(12);
+        const price = `$${Number(detail.precioUni).toFixed(2)}`.padStart(6).padEnd(9);
+        const total = `$${Number(detail.ventaGravada).toFixed(2)}`.padStart(6);
+
+        if (productName.length > 19) {
+          const firstPart = productName.slice(0, 19);
+          const secondPart = productName.slice(19);
+
+          printer.encode('CP850').text(`${firstPart.padEnd(19)}${quantity}${price}${total}`);
+
+          printer.encode('CP850').align('LT').text(`${secondPart.padEnd(19)}`);
+        } else {
+          const paddedName = productName.padEnd(19);
+          printer.encode('CP850').text(`${paddedName}${quantity}${price}${total}`);
+        }
+      });
 
 
       printer.text("-----------------------------------------------");
@@ -243,17 +153,17 @@ app.post('/print', async (req, res) => {
         .size(0, 0)
         .text("Este comprobante no tiene validez tributaria,").feed();
 
-        await new Promise((resolve, reject) => {
-          printer.qrimage(qrImage, function (err) { 
-            if (err) {
-              console.error('Error generating QR:', err);
-              reject(err);
-            } else {
-              console.log('QR generated successfully');
-              resolve();
-            }
-          });
+      await new Promise((resolve, reject) => {
+        printer.qrimage(qrImage, function (err) {
+          if (err) {
+            console.error('Error generating QR:', err);
+            reject(err);
+          } else {
+            console.log('QR generated successfully');
+            resolve();
+          }
         });
+      });
 
       printer.text("Escanea el codigo QR para validar tu DTE")
         .style("B")
@@ -363,7 +273,7 @@ app.post("/printName", async (req, res) => {
 
     const PRINTER = {
       device_name: "SEEDCODE",
-      host: "192.168.0.100",
+      host: process.env.HOST,
       port: 9100,
     };
 
@@ -405,9 +315,10 @@ app.post('/printsecond', async (req, res) => {
 
 
     const PRINTER = {
-      host: '192.168.0.100', // Cambia según tu red
+      host: process.env.HOST,
       port: 9100,           // Puerto configurado para la impresora
     };
+    console.log(process.env.HOST);
     const device = new escpos.Network(PRINTER.host, PRINTER.port);
     const printer = new escpos.Printer(device);
 
@@ -416,20 +327,11 @@ app.post('/printsecond', async (req, res) => {
         .font('a')
         .align('ct')
         .style('bu')
-        .size(1, 1)
-        .text('The quick brown fox jumps over the lazy dog')
-        .text('敏捷的棕色狐狸跳过懒狗')
-        .barcode('1234567', 'EAN8')
-        .table(["One", "Two", "Three"])
-        .tableCustom(
-          [
-            { text: "Left", align: "LEFT", width: 0.33, style: 'B' },
-            { text: "Center", align: "CENTER", width: 0.33 },
-            { text: "Right", align: "RIGHT", width: 0.33 }
-          ],
-          { encoding: 'cp857', size: [1, 1] } // Optional
-        )
+        .size(0, 0)
         .qrimage(qrImage, function (err) {
+          if (err) {
+            console.error('Error generating QR:', err);
+          }
           this.cut();
           this.close();
         });
