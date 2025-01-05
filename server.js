@@ -63,120 +63,44 @@ app.post('/print', async (req, res) => {
       customer
     } = req.body;
 
-    if (!details || !branchName || !totalPagar || !numeroControl || !codigoGeneracion || !box || !selloRecibido || !fecEmi) {
+    if (!details || !branchName || !totalPagar || !box || !fecEmi) {
       return res.status(400).send('Missing required fields');
     }
 
-    const PRINTER = {
-      host: process.env.HOST, // Cambia según tu red
-      port: 9100,           // Puerto configurado para la impresora
+    const selloValidado = selloRecibido ? selloRecibido : "N/A";
+
+    // Estructura para mostrar los datos en la consola
+    const printData = {
+      branchName,
+      box,
+      fecEmi,
+      customer: customer || 'CLIENTE VARIOS',
+      selloRecibido: selloValidado,
+      numeroControl: selloValidado !== "N/A" ? numeroControl : undefined,
+      codigoGeneracion: selloValidado !== "N/A" ? codigoGeneracion : undefined,
+      totalPagar,
+      details: details.map((detail) => ({
+        descripcion: detail.descripcion,
+        cantidad: detail.cantidad,
+        precioUnitario: Number(detail.precioUni).toFixed(2),
+        ventaGravada: Number(detail.ventaGravada).toFixed(2),
+      })),
+      qr: selloValidado !== "N/A"
+        ? `https://admin.factura.gob.sv/consultaPublica?ambiente=${encodeURIComponent("00")}&codGen=${encodeURIComponent(codigoGeneracion)}&fechaEmi=${encodeURIComponent(fecEmi)}`
+        : null,
     };
-    const device = new escpos.Network(PRINTER.host, PRINTER.port);
-    const printer = new escpos.Printer(device);
-    const qrImage = `https://admin.factura.gob.sv/consultaPublica?ambiente=${encodeURIComponent("00")}&codGen=${encodeURIComponent(codigoGeneracion)}&fechaEmi=${encodeURIComponent(fecEmi)}`;
-    device.open(async (error) => {
 
-      if (error) {
-        console.error("Error connecting to printer:", error);
-        return res.status(500).send("Printer connection failed");
-      }
+    console.log("Datos para impresión:", JSON.stringify(printData, null, 2));
 
-      // Encabezado del ticket con estilo
-      printer
-        .align("CT")
-        .style("B")
-        .size(0, 0)
-        .text(branchName)
-        .style("NORMAL")
-        .size(0, 0)
-        .text("-----------------------------------------------");
-
-      printer
-        .align("CT")
-        .style("NORMAL")
-        .size(0, 0)
-        .text(`Caja: ${box}`).marginBottom(4)
-        .style("NORMAL")
-        .text(`Fecha de compra: ${fecEmi}`)
-        .text(`Numero de control: `)
-        .text(`${numeroControl}`)
-        .text(`Codigo Generacion: `)
-        .text(`${codigoGeneracion}`)
-        .text(`Sello recibido:`)
-        .text(`${selloRecibido}`)
-        .text(`Cliente: ${customer || 'CLIENTE VARIOS'}`)
-        .text("-----------------------------------------------");
-
-      printer
-        .align("CT")
-        .style("NORMAL")
-        .size(0, 0)
-        .text("Producto             Cantidad   Precio    Total")
-        .style("NORMAL")
-        .text("-----------------------------------------------");
-
-      details.forEach((detail) => {
-        const productName = String(detail.descripcion);
-        const quantity = String(detail.cantidad).padStart(8).padEnd(12);
-        const price = `$${Number(detail.precioUni).toFixed(2)}`.padStart(6).padEnd(9);
-        const total = `$${Number(detail.ventaGravada).toFixed(2)}`.padStart(6);
-
-        if (productName.length > 19) {
-          const firstPart = productName.slice(0, 19);
-          const secondPart = productName.slice(19);
-
-          printer.encode('CP850').text(`${firstPart.padEnd(19)}${quantity}${price}${total}`);
-
-          printer.encode('CP850').align('LT').text(`${secondPart.padEnd(19)}`);
-        } else {
-          const paddedName = productName.padEnd(19);
-          printer.encode('CP850').text(`${paddedName}${quantity}${price}${total}`);
-        }
-      });
-
-
-      printer.text("-----------------------------------------------");
-
-      printer
-        .align("RT")
-        .style("B") // Negrita
-        .size(0, 0) // Tamaño más pequeño
-        .text(`TOTAL A PAGAR: $${totalPagar}`)
-        .style("NORMAL")
-        .size(0, 0); // Tamaño más pequeño
-
-    
-
-      await new Promise((resolve, reject) => {
-        printer.qrimage(qrImage, function (err) {
-          if (err) {
-            console.error('Error generating QR:', err);
-            reject(err);
-          } else {
-            console.log('QR generated successfully');
-            resolve();
-          }
-        });
-      });
-
-      printer.text("Escanea el codigo QR para validar tu DTE")
-        .style("B")
-        .text("Powered by SeedCodeSV")
-        .style("NORMAL")
-        .text("www.seedcodesv.com")
-        .marginBottom(4)
-        .feed(3)
-        .cut()
-        .close();
-
-      res.send("success");
-    });
+    // Simulación de éxito en la impresión
+    return res.send("Simulación exitosa. Datos enviados a la consola.");
 
   } catch (err) {
-    console.error("Error while printing:", err);
-    res.status(500).send("Printing failed");
+    console.error("Error while processing print data:", err);
+    res.status(500).send("Processing failed");
   }
 });
+
 
 app.post("/sale", async (req, res) => {
   try {
