@@ -49,7 +49,7 @@ https.createServer(options, app).listen(3000, () => {
   console.log("Listening on port 3000");
 });
 
-app.post('/print', async (req, res) => {
+app.post("/print", async (req, res) => {
   try {
     const {
       details,
@@ -60,14 +60,27 @@ app.post('/print', async (req, res) => {
       box,
       selloRecibido,
       fecEmi,
-      customer
+      customer,
+      subTotalConIvaIncluido,
+      typeDte,
     } = req.body;
 
-    if (!details || !branchName || !totalPagar || !box || !fecEmi) {
-      return res.status(400).send('Missing required fields');
+    // Validar campos requeridos
+    if (
+      !details ||
+      !branchName ||
+      !totalPagar ||
+      !box ||
+      !fecEmi ||
+      !subTotalConIvaIncluido ||
+      !typeDte
+    ) {
+      return res.status(400).send("Missing required fields");
     }
 
-    const selloValidado = selloRecibido ? selloRecibido : "N/A";
+    const typeFactura =
+      typeDte === "01" ? "CONSUMIDOR FINAL" : "CREDITO FISCAL";
+    const selloValidado = selloRecibido || "N/A";
 
     const PRINTER = {
       host: process.env.HOST,
@@ -76,107 +89,116 @@ app.post('/print', async (req, res) => {
     const device = new escpos.Network(PRINTER.host, PRINTER.port);
     const printer = new escpos.Printer(device);
 
+    // Abrir conexión con la impresora
     device.open(async (error) => {
       if (error) {
         console.error("Error connecting to printer:", error);
         return res.status(500).send("Printer connection failed");
       }
 
-      printer
-        .align("CT")
-        .style("B")
-        .size(0, 0)
-        .text(branchName)
-        .style("NORMAL")
-        .size(0, 0)
-        .text("-----------------------------------------------");
-
-      printer
-        .align("CT")
-        .style("NORMAL")
-        .size(0, 0)
-        .text(`Caja: ${box}`).marginBottom(4)
-        .style("NORMAL")
-        .text(`Fecha de compra: ${fecEmi}`);
-
-      if (selloValidado !== "N/A") {
+      try {
+        // Imprimir cabecera
         printer
-          .text(`Numero de control: ${numeroControl}`)
-          .text(`Codigo Generacion: ${codigoGeneracion}`);
-      }
+          .align("CT")
+          .style("B")
+          .size(0, 0)
+          .text(branchName)
+          .style("NORMAL")
+          .text("-----------------------------------------------")
+          .align("CT")
+          .text(`DTE : ${typeFactura}`)
+          .text(`Caja: ${box}`)
+          .text(`Fecha de compra: ${fecEmi}`);
 
-      printer
-        .text(`Sello recibido: ${selloValidado}`)
-        .text(`Cliente: ${customer || 'CLIENTE VARIOS'}`)
-        .text("-----------------------------------------------");
-
-      printer
-        .align("CT")
-        .style("NORMAL")
-        .size(0, 0)
-        .text("Producto             Cantidad   Precio    Total")
-        .style("NORMAL")
-        .text("-----------------------------------------------");
-
-      details.forEach((detail) => {
-        const productName = String(detail.descripcion);
-        const quantity = String(detail.cantidad).padStart(8).padEnd(12);
-        const price = `$${Number(detail.precioUni).toFixed(2)}`.padStart(6).padEnd(9);
-        const total = `$${Number(detail.ventaGravada).toFixed(2)}`.padStart(6);
-
-        if (productName.length > 19) {
-          const firstPart = productName.slice(0, 19);
-          const secondPart = productName.slice(19);
-
-          printer.encode('CP850').text(`${firstPart.padEnd(19)}${quantity}${price}${total}`);
-          printer.encode('CP850').align('LT').text(`${secondPart.padEnd(19)}`);
-        } else {
-          const paddedName = productName.padEnd(19);
-          printer.encode('CP850').text(`${paddedName}${quantity}${price}${total}`);
+        if (selloValidado !== "N/A") {
+          printer.text(`Numero de control: ${numeroControl}`);
+          printer.text(`Codigo Generacion: ${codigoGeneracion}`);
         }
-      });
 
-      printer.text("-----------------------------------------------");
+        printer.text(`Sello recibido: ${selloValidado}`);
+        printer.text(`Cliente: ${customer || "CLIENTE VARIOS"}`);
+        printer.text("-----------------------------------------------");
 
-      printer
-        .align("RT")
-        .style("B")
-        .size(0, 0)
-        .text(`TOTAL A PAGAR: $${totalPagar}`)
-        .style("NORMAL")
-        .size(0, 0);
+        // Imprimir detalles
+        printer
+          .align("CT")
+          .text("Producto             Cantidad   Precio    Total")
+          .text("-----------------------------------------------");
 
-      if (selloValidado !== "N/A") {
-        const qrImage = `https://admin.factura.gob.sv/consultaPublica?ambiente=${encodeURIComponent("00")}&codGen=${encodeURIComponent(codigoGeneracion)}&fechaEmi=${encodeURIComponent(fecEmi)}`;
-        
-        await new Promise((resolve, reject) => {
-          printer.qrimage(qrImage, function (err) {
-            if (err) {
-              console.error('Error generating QR:', err);
-              reject(err);
-            } else {
-              console.log('QR generated successfully');
-              resolve();
-            }
-          });
+        details.forEach((detail) => {
+          const productName = String(detail.descripcion);
+          const quantity = String(detail.cantidad).padStart(8).padEnd(12);
+          const price = `$${Number(detail.precioUni).toFixed(2)}`
+            .padStart(6)
+            .padEnd(9);
+          const total = `$${Number(detail.ventaGravada).toFixed(2)}`.padStart(
+            6
+          );
+
+          if (productName.length > 19) {
+            const firstPart = productName.slice(0, 19);
+            const secondPart = productName.slice(19);
+
+            printer
+              .encode("CP850")
+              .text(`${firstPart.padEnd(19)}${quantity}${price}${total}`)
+              .align("LT")
+              .text(`${secondPart.padEnd(19)}`);
+          } else {
+            const paddedName = productName.padEnd(19);
+            printer
+              .encode("CP850")
+              .text(`${paddedName}${quantity}${price}${total}`);
+          }
         });
 
-        printer.text("Escanea el codigo QR para validar tu DTE");
+        printer.text("-----------------------------------------------");
+
+        // Imprimir totales
+        printer
+          .align("RT")
+          .style("B")
+          .text(`SUBTOTAL: $${totalPagar}`)
+          .text(`TOTAL A PAGAR: $${subTotalConIvaIncluido}`)
+          .style("NORMAL");
+
+        if (selloValidado !== "N/A") {
+          const qrImage = `https://admin.factura.gob.sv/consultaPublica?ambiente=${encodeURIComponent(
+            "01"
+          )}&codGen=${encodeURIComponent(
+            codigoGeneracion
+          )}&fechaEmi=${encodeURIComponent(fecEmi)}`;
+
+          await new Promise((resolve, reject) => {
+            printer.qrimage(qrImage, (err) => {
+              if (err) {
+                console.error("Error generating QR:", err);
+                reject(err);
+              } else {
+                resolve();
+              }
+            });
+          });
+
+          printer.text("Escanea el codigo QR para validar tu DTE");
+        }
+
+        // Finalizar impresión
+        printer
+          .style("B")
+          .text("Powered by SeedCodeSV")
+          .style("NORMAL")
+          .text("www.seedcodesv.com")
+          .feed(3)
+          .cut()
+          .close();
+
+        res.send("success");
+      } catch (printError) {
+        console.error("Printing error:", printError);
+        res.status(500).send("Printing failed");
       }
-
-      printer
-        .style("B")
-        .text("Powered by SeedCodeSV")
-        .style("NORMAL")
-        .text("www.seedcodesv.com")
-        .marginBottom(4)
-        .feed(3)
-        .cut()
-        .close();
-
-      res.send("success");
     });
-
   } catch (err) {
     console.error("Error while printing:", err);
     res.status(500).send("Printing failed");
@@ -285,18 +307,14 @@ app.post("/printName", async (req, res) => {
   }
 });
 
-app.post('/printsecond', async (req, res) => {
+app.post("/printsecond", async (req, res) => {
   try {
-    const {
-      codigoGeneracion,
-      fecEmi,
-    } = req.body;
+    const { codigoGeneracion, fecEmi } = req.body;
 
     console.log(codigoGeneracion, fecEmi);
 
-
     if (!codigoGeneracion || !fecEmi) {
-      return res.status(400).send('Missing required fields');
+      return res.status(400).send("Missing required fields");
     }
 
     // const qrImage = await QR_URL(codigoGeneracion,fecEmi);
@@ -306,16 +324,17 @@ app.post('/printsecond', async (req, res) => {
     // }
 
     // const qrImage = await generateQRCode(`https://admin.factura.gob.sv/consultaPublica?ambiente=${encodeURIComponent("00")}&codGen=${encodeURIComponent(codigoGeneracion)}&fechaEmi=${encodeURIComponent(fecEmi)}`)
-    const qrImage = `https://admin.factura.gob.sv/consultaPublica?ambiente=${encodeURIComponent("00")}&codGen=${encodeURIComponent(codigoGeneracion)}&fechaEmi=${encodeURIComponent(fecEmi)}`
-
+    const qrImage = `https://admin.factura.gob.sv/consultaPublica?ambiente=${encodeURIComponent(
+      "01"
+    )}&codGen=${encodeURIComponent(
+      codigoGeneracion
+    )}&fechaEmi=${encodeURIComponent(fecEmi)}`;
 
     console.log("QR generado:", qrImage);
 
-
-
     const PRINTER = {
       host: process.env.HOST,
-      port: 9100,           // Puerto configurado para la impresora
+      port: 9100, // Puerto configurado para la impresora
     };
     console.log(process.env.HOST);
     const device = new escpos.Network(PRINTER.host, PRINTER.port);
@@ -323,13 +342,13 @@ app.post('/printsecond', async (req, res) => {
 
     device.open(function (error) {
       printer
-        .font('a')
-        .align('ct')
-        .style('bu')
+        .font("a")
+        .align("ct")
+        .style("bu")
         .size(0, 0)
         .qrimage(qrImage, function (err) {
           if (err) {
-            console.error('Error generating QR:', err);
+            console.error("Error generating QR:", err);
           }
           this.cut();
           this.close();
